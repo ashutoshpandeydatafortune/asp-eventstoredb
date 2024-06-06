@@ -2,6 +2,7 @@
 {
     using EventStore.Client;
     using EventStoreAPI.Models.Request;
+    using Microsoft.Extensions.Options;
     using System;
     using System.Text;
     using System.Text.Json;
@@ -37,9 +38,17 @@
             );
         }
 
-        public async Task<List<EventDetail>> ReadEventsAsync(string streamName)
+        public async Task<List<EventDetail>> ReadEventsAsync(string streamName, int? pageNumber, int? pageSize)
         {
-            var result = _client.ReadStreamAsync(Direction.Forwards, streamName, StreamPosition.Start);
+            var start = pageSize ?? 10 * pageNumber ?? 1;
+
+            var result = _client.ReadStreamAsync(
+                        Direction.Forwards,
+                        streamName,
+                        StreamPosition.FromInt64((long)start),
+                        maxCount: pageSize ?? 10,
+                        resolveLinkTos: true
+                    );
 
             List<EventDetail> events = new List<EventDetail>();
             await foreach (var @event in result)
@@ -50,29 +59,44 @@
             return events;
         }
 
-        public async Task<List<EventDetail>> ReadEventsByEventTypeAsync(string streamName, string eventType)
+        public async Task<List<EventDetail>> ReadEventsByEventTypeAsync(string streamName, string eventType, int? pageNumber, int? pageSize)
         {
-            return await GetFilteredEvents(streamName, eventType);
+            return await GetFilteredEvents(
+                streamName: streamName,
+                eventType: eventType);
         }
 
-        public async Task<List<EventDetail>> ReadEventsByDateTimeAsync(string streamName, DateTime startDate, DateTime endDate)
+        public async Task<List<EventDetail>> ReadEventsByDateTimeAsync(string streamName, DateTime startDate, DateTime endDate, int? pageNumber, int? pageSize)
         {
-            return await GetFilteredEvents(streamName, null, startDate, endDate);
+            return await GetFilteredEvents(
+                streamName: streamName, 
+                startDate: startDate, 
+                endDate:endDate);
         }
 
-        public async Task<List<EventDetail>> GetFilteredEvents(string streamName, string? eventType, DateTime? startDate = null, DateTime? endDate = null)
+        public async Task<List<EventDetail>> GetFilteredEvents(string streamName, string? eventType = null, DateTime? startDate = null, DateTime? endDate = null, int? pageNumber = null, int? pageSize = null)
         {
             var options = new StreamPosition(0);
             var events = new List<EventDetail>();
 
-            var result = _client.ReadStreamAsync(Direction.Forwards, streamName, options, resolveLinkTos: true);
+            var start = pageSize ?? 10 * pageNumber ?? 1;
+
+            var result = _client.ReadStreamAsync(
+                        Direction.Forwards,
+                        streamName,
+                        StreamPosition.FromInt64((long)start),
+                        maxCount: pageSize ?? 10,
+                        resolveLinkTos: true
+                    );
 
             await foreach (var @event in result)
             {
                 var recordedEvent = @event.Event;
 
+                // If event type is passed
                 if (eventType != null)
                 {
+                    // If dates are passed
                     if (startDate.HasValue && endDate.HasValue)
                     {
                         if ((recordedEvent.EventType == eventType) && IsEventInDateRange(recordedEvent.Created, startDate.Value, endDate.Value))
@@ -82,6 +106,7 @@
                     }
                     else
                     {
+                        // If no dates, check event type
                         if (recordedEvent.EventType == eventType)
                         {
                             events.Add(DeserializeEventData(recordedEvent.Data.ToArray()));
@@ -90,6 +115,7 @@
                 }
                 else
                 {
+                    // If no event type, check dates
                     if (startDate.HasValue && endDate.HasValue)
                     {
                         if (IsEventInDateRange(recordedEvent.Created, startDate.Value, endDate.Value))
@@ -99,6 +125,7 @@
                     }
                     else
                     {
+                        // If no filter, then simply add the event to the list
                         events.Add(DeserializeEventData(recordedEvent.Data.ToArray()));
                     }
                 }

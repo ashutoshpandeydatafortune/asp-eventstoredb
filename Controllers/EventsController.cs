@@ -21,24 +21,24 @@ public class EventsController : ControllerBase
         return Ok();
     }
 
-    [HttpGet("{streamName}")]
-    public async Task<IActionResult> ReadEvents(string streamName)
+    [HttpGet("{streamName}/{pageNumber?}/{pageSize?}")]
+    public async Task<IActionResult> ReadEvents(string streamName, int? pageNumber, int? pageSize)
     {
-        List<EventDetail> result = await _eventStoreService.ReadEventsAsync(streamName);
+        List<EventDetail> result = await _eventStoreService.ReadEventsAsync(streamName, pageNumber, pageSize);
         return Ok(result);
     }
 
-    [HttpGet("{streamName}/{eventType}")]
-    public async Task<IActionResult> ReadEventsByEventType(string streamName, string eventType)
+    [HttpGet("{streamName}/{eventType}/{pageNumber?}/{pageSize?}")]
+    public async Task<IActionResult> ReadEventsByEventType(string streamName, string eventType, int? pageNumber, int? pageSize)
     {
-        List<EventDetail> result = await _eventStoreService.ReadEventsByEventTypeAsync(streamName, eventType);
+        List<EventDetail> result = await _eventStoreService.ReadEventsByEventTypeAsync(streamName, eventType, pageNumber, pageSize);
         return Ok(result);
     }
 
-    [HttpGet("{streamName}/{startDate}/{endDate}")]
-    public async Task<IActionResult> ReadEventsByDateTimeAsync(string streamName, string startDate, string endDate)
+    [HttpGet("{streamName}/{startDate}/{endDate}/{pageNumber?}/{pageSize?}")]
+    public async Task<IActionResult> ReadEventsByDateTimeAsync(string streamName, string startDate, string endDate, int? pageNumber, int? pageSize)
     {
-        List<EventDetail> result = await _eventStoreService.ReadEventsByDateTimeAsync(streamName, DateTime.Parse(startDate), DateTime.Parse(endDate));
+        List<EventDetail> result = await _eventStoreService.ReadEventsByDateTimeAsync(streamName, DateTime.Parse(startDate), DateTime.Parse(endDate), pageNumber, pageSize);
         return Ok(result);
     }
 }
